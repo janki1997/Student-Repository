@@ -4,15 +4,13 @@ CWID : 10457365
 """
 
 
-"""This file we will do  the University, Student, Mejor and Instructor. """
+"""This file we will do  the University, Student, Mejor and Instructor. Also we add query and connect to databse """
 
 """This is importing some of the in-built functions"""
 
-# from HW_08 import file_reader
 
 
-
-
+import sqlite3
 import os
 from prettytable import PrettyTable
 from collections import defaultdict
@@ -45,20 +43,22 @@ class University:
 
     """ Repository to store information of students and instructors """
 
-    def __init__(self, dire: str, d: bool) -> None:
+    def __init__(self, dire: str, db_path : str, d=True) -> None:
         """ this method will initialize directory and dictionary for students as well as instructor"""
 
-        self._dir: str = dir
+        self._dir: str = dire
+        self.db_path : str = db_path
         self._students: Dict[str, Student] = dict()
         self._instructors: Dict[str, Instructor] = dict()
         self._majors: Dict[str, Major] = dict()
-        stud: str = 'students.txt'
-        inst: str = 'instructors.txt'
+        stud: str = 'student.txt'
+        inst: str = 'instructor.txt'
         grade: str = 'grades.txt'
-        mejor: str = 'majors.txt'
+        major: str = 'majors.txt'
 
         try:
-            self._getmajor(os.path.join(dire, mejor))
+            self._studentgrade_db(os.path.join(dire, self.db_path))
+            self._getmajor(os.path.join(dire, major))
             self._getstudent(os.path.join(dire, stud))
             self._getinstructor(os.path.join(dire, inst))
             self._getgrade(os.path.join(dire, grade))
@@ -70,11 +70,12 @@ class University:
                 self.s_table()
                 self.i_table()
                 self.m_table()
+                self.g_table()
 
     def _getstudent(self, path: str) -> None:
         """In this method we will get student details from the file store in to dictionary"""
         try:
-            for cwid, name, major in self.file_reader(path, 3, sep=';', header=True):
+            for cwid, name, major in self.file_reader(path, 3, sep='\t', header=True):
                 if major not in self._majors:
                     print(
                         f"Student {cwid} '{name}' has unknown major '{major}'")
@@ -87,7 +88,7 @@ class University:
     def _getinstructor(self, path: str) -> None:
         """In this method we will get instructor  details from the file store in to dictionary"""
         try:
-            for cwid, name, dept in self.file_reader(path, 3, sep='|', header=True):
+            for cwid, name, dept in self.file_reader(path, 3, sep='\t', header=True):
                 self._instructors[cwid] = Instructor(cwid, name, dept)
         except ValueError as ve:
             print(ve)
@@ -95,7 +96,7 @@ class University:
     def _getgrade(self, path: str) -> None:
         """In this method we will get student grade from the file store in to dictionary """
         g_info: Iterator[Tuple[str]] = self.file_reader(
-            path, 4, sep='|', header=True)
+            path, 4, sep='\t', header=True)
         try:
             for stu_cwid, course, grade, inst_cwid in g_info:
                 if stu_cwid in self._students:
@@ -111,7 +112,7 @@ class University:
             print(ve)
 
     def _getmajor(self, path: str) -> None:
-        """in this method we will get information from mejor file"""
+        """in this method we will get information from major file"""
         try:
             for major, flag, course in self.file_reader(path, 3, sep='\t', header=True):
                 if major not in self._majors:
@@ -120,6 +121,21 @@ class University:
         except ValueError as ve:
             print(ve)
 
+    def _studentgrade_db(self,db_path: str)-> None:
+        """in this method we will get information from grade file"""
+        try:
+            d :sqlite3.Connection = sqlite3.connect(self.db_path)
+            """query of  given quastion"""
+            q: str =  """select   student.Name, student.CWID ,grades.Course, grades.Grade,instructor.Name as i_name
+                            from student
+                            join grades on grades.StudentCWID = student.CWID
+                            join instructor on grades.InstructorCWID = instructor.CWID
+                            order by  student.Name"""
+            for Name,CWID,Course,Grade,IName in d.execute(q):
+                yield Name,str(CWID),Course,Grade,IName
+        except sqlite3.OperationalError as ve:
+            print(ve)
+     
     def s_table(self) -> PrettyTable:
         """  Pretty table for students """
         pt_table: PrettyTable = PrettyTable(
@@ -146,6 +162,13 @@ class University:
             pt_table.add_row(major.pt_table_row())
         return pt_table
 
+
+    def g_table(self) -> PrettyTable:
+        "Pretty table for grade table"
+        pt_table: PrettyTable = PrettyTable(field_names=["NAME", "CWID", "COURSE", "GRADE", "Instructor"])
+        for gtable in self._studentgrade_db(self.db_path):
+            pt_table.add_row(gtable)
+        return pt_table
 
 class Student:
     """ This is Student class """
@@ -209,7 +232,7 @@ class Major:
     min_grades = {'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'}
 
     def __init__(self, major: str) -> None:
-        """ in that we will initialize mejor details """
+        """ in that we will initialize major details """
         self._major: str = major
         self._Requirecourses: Set = set()
         self._Electivecourses: Set = set()
