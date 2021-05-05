@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block body %}
+<h2>{{ title }}</h2>
+<h3>{{ t_title}}</h3>
+<table border="1">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>CWID</th>
+            <th>Course</th>
+            <th>Grade</th>
+            <th>Instructor</th>
+        </tr>
+    </thead>
+    {% for data in s %}
+        <tr>
+            <td>{{ data.name}}</td>
+            <td>{{ data.cwid}}</td>
+            <td>{{ data.course}}</td>
+            <td>{{ data.grade}}</td>
+            <td>{{ data.instructor}}</td>
+        </tr>
+    {% endfor %}
+</table>  
+{% endblock %}
